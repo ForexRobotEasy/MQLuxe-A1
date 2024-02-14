@@ -1,0 +1,109 @@
+mql5
+//+------------------------------------------------------------------+
+//|                                                MQLuxe A1         |
+//|                                        http://forexroboteasy.com |
+//|                                          Developed by Forex Robot |
+//|                                                                Easy Team |
+//+------------------------------------------------------------------+
+
+// Include necessary libraries
+#include <Trade\Trade.mqh>
+#include <Indicators\ATR.mqh>
+#include <Indicators\RSI.mqh>
+
+// Define input parameters
+input double lotSize = 0.1; // Default lot size
+input double stopLossPips = 50; // Default stop loss in pips
+input double takeProfitPips = 100; // Default take profit in pips
+input double atrPeriod = 14; // ATR period
+input double rsiPeriod = 14; // RSI period
+input double rsiOverboughtLevel = 70; // RSI overbought level
+input double rsiOversoldLevel = 30; // RSI oversold level
+
+// Define global variables
+double atrValue; // ATR value
+double rsiValue; // RSI value
+bool buySignal = false; // Buy signal
+bool sellSignal = false; // Sell signal
+
+// Create an instance of the ATR indicator
+CIndicators atrIndicator;
+int atrHandle;
+
+// Create an instance of the RSI indicator
+CIndicators rsiIndicator;
+int rsiHandle;
+
+// Create an instance of the Trade class
+CTrade trade;
+
+// Initialize the robot
+int OnInit()
+{
+    // Calculate ATR value
+    atrHandle = atrIndicator.iATR(_Symbol, _Period, atrPeriod);
+    
+    // Calculate RSI value
+    rsiHandle = rsiIndicator.iRSI(_Symbol, _Period, rsiPeriod, PRICE_CLOSE);
+    
+    return(INIT_SUCCEEDED);
+}
+
+// Execute trading logic
+void OnTick()
+{
+    // Calculate ATR value
+    atrValue = atrIndicator.iATR(_Symbol, _Period, atrPeriod);
+    
+    // Calculate RSI value
+    rsiValue = rsiIndicator.iRSI(_Symbol, _Period, rsiPeriod, PRICE_CLOSE);
+    
+    // Check if ATR value is greater than stop loss
+    if(atrValue > stopLossPips)
+    {
+        // Adjust stop loss and take profit levels based on ATR value
+        double adjustedStopLoss = NormalizeDouble(atrValue * 0.5, _Digits);
+        double adjustedTakeProfit = NormalizeDouble(atrValue * 1.5, _Digits);
+        
+        // Execute buy trade if RSI is oversold
+        if(rsiValue < rsiOversoldLevel)
+        {
+            trade.Buy(lotSize, _Symbol, 0, adjustedStopLoss, adjustedTakeProfit);
+            buySignal = true;
+            sellSignal = false;
+        }
+        
+        // Execute sell trade if RSI is overbought
+        if(rsiValue > rsiOverboughtLevel)
+        {
+            trade.Sell(lotSize, _Symbol, 0, adjustedStopLoss, adjustedTakeProfit);
+            buySignal = false;
+            sellSignal = true;
+        }
+    }
+}
+
+// Handle trade events
+void OnTrade()
+{
+    // Check for trade execution
+    if(trade.IsTrade())
+    {
+        // Print trade execution details
+        if(buySignal)
+        {
+            Print('Buy trade executed at price ', trade.OpenPrice());
+        }
+        else if(sellSignal)
+        {
+            Print('Sell trade executed at price ', trade.OpenPrice());
+        }
+    }
+}
+
+// Handle deinitialization
+void OnDeinit(const int reason)
+{
+    // Print deinitialization reason
+    Print('MQLuxe A1 deinitialized. Reason: ', reason);
+}
